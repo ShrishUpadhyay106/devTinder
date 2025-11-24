@@ -1,37 +1,37 @@
 // console.log("starting a new project");
 const express= require('express');
+const connectDb = require("./config/database");
 const app = express();
-
-// /ab,/abc
-
-
-// app.get("/user/:userid/:name",(req,res)=>{
-//     console.log(req.params);
-//     res.send({firstName:"shrish", lastName:"upadhyay"});
-// });
+const User= require("./models/user");
+// app.use(express.json());
 
 
-// app.get("/user",(req,res)=>{
-//     console.log(req.query);
-//     res.send({firstName:"shrish", lastName:"upadhyay"});
-// });
 
-app.use( "/user",
-     [(req,res,next)=>{
-    // res.send('hello from the  dahsboard server');
-    next();
-     },
-    (req,res,next)=>{
-    // res.send('hello from the  dahsboard server');
-    next();
-     }],
-      (req,res,next)=>{
-    res.send('hello from the  dahsboard server');
-    
-      }
+app.post("/signup",async(req,res)=>{
+  const users= new User({
+    firstName: "shrish",
+    lastName: "upadhyay",
+    emailId:"gfhghjb",
+    password: "avbvs",
+    age: 22,
+  });
+  try{
+     await users.save();
+ res.send("user added successfully");
+  }
+  catch(err){
+    res.status(400).send('error saving the data '+ err.message);
+  }
+});
 
-);
-
-app.listen(3000 ,()=>{
+connectDb().then(()=> {
+    console.log("database connection established");
+    app.listen(3000 ,()=>{
     console.log("server is sucessfully listeing on the port 3000")
 });
+}).catch(err=>{
+  console.error("database cannot be connected!!")
+});
+
+
+
