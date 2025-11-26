@@ -1,9 +1,14 @@
 // console.log("starting a new project");
 const express = require("express");
 const connectDb = require("./config/database");
+const {validateSignUpdata}= require("./utility/validation");
+const bcrypt= require('bcrypt');
+const validator= require("validator");
+
 const app = express();
 const User = require("./models/user");
 app.use(express.json());
+
 // for specific one user
 app.get("/user", async (req, res) => {
   try {
@@ -52,7 +57,7 @@ app.patch("/user/:userId", async (req, res) => {
   const data = req.body;
   
   try {
-    const ALLOWED_UPADTES = ["age", "gender", "skills", "photourl"];
+    const ALLOWED_UPADTES = ["age", "gender", "skills", "photourl","password"];
 
   const isUpdateAllowed = Object.keys(data).every((k) =>
     ALLOWED_UPADTES.includes(k)
@@ -60,13 +65,17 @@ app.patch("/user/:userId", async (req, res) => {
   if (!isUpdateAllowed) {
     throw new Error("Upadate not allowed");
   }
-  if(data.skills.length>=10){
+  if(data?.skills?.length>=10){
     throw new Error("skills more than 10 not allowed");
   }
+     if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
+    }
     const user= await User.findByIdAndUpdate({ _id: userId }, data, {
       returnDocument: "after",
       runValidators: true,
     });
+  
     console.log(user);
     res.send("updated successfully");
   } catch (err) {
@@ -74,13 +83,50 @@ app.patch("/user/:userId", async (req, res) => {
   }
 });
 
+app.post("/login", async (req,res)=>{
+  try{
+    const{emailId,password}=req.body;
+    if(!validator.isEmail(emailId)){
+      throw new Error("invalid email formate");
+    }
+    else{
+      const user= await User.findOne({emailId:emailId});
+      if(!user){
+        throw new Error("Invalid email id, not found");
+      }
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      if(isPasswordValid){
+        res.send("Login Successfull!!");
+      }
+      else{
+        throw new Error("password is incorrect");
+      }
+    }
+
+  }
+  catch(err) {
+    res.status(400).send("ERROR!" + err.message);
+  }
+});
+
+
 app.post("/signup", async (req, res) => {
-  const users = new User(req.body);
   try {
+      // validation is required 
+   validateSignUpdata(req);
+  
+    const{firstName,lastName,emailId,password}=req.body;
+    // encrypting password
+    const passwordHash= await bcrypt.hash(password,10);
+
+ // const users = new User(req.body); not best way to access the body
+    const users= new User({
+      firstName,lastName,emailId,password: passwordHash,
+    });
     await users.save();
     res.send("user added successfully");
   } catch (err) {
-    res.status(400).send("error saving the data " + err.message);
+    res.status(400).send("ERROR!" + err.message);
   }
 });
 
