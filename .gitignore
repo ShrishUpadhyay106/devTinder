@@ -24,3 +24,6 @@ app.use( "/user",
 app.listen(3000 ,()=>{
     console.log("server is sucessfully listeing on the port 3000")
 });
+
+
+

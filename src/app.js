@@ -14,79 +14,7 @@ app.use(express.json());
 app.use(cookieparser());
 
 
-// for specific one user
-app.get("/user", async (req, res) => {
-  try {
-    //   const users= await User.find({emailId:req.body.emailId});
-    // if(users.length ===0){
-    //   res.status(404).send("user not found");
-    // }
-    // else{
-    //   res.send(users);
-    // }
 
-    // if two users with same emailId
-    const users = await User.findOne({ emailId: req.body.emailId });
-    res.send(users);
-  } catch (err) {
-    res.status(400).send("something went wrong ");
-  }
-});
-
-// for all users.
-app.get("/feed", async (req, res) => {
-  try {
-    const users = await User.find({});
-    if (users.length === 0) {
-      res.status(404).send("user not found");
-    } else {
-      res.send(users);
-    }
-  } catch (err) {
-    res.status(400).send("something went wrong ");
-  }
-});
-
-app.delete("/user", async (req, res) => {
-  try {
-    const userid = req.body.userId;
-    const user = await User.findByIdAndDelete({ _id: userid });
-    res.send("user delete succesfully");
-  } catch (err) {
-    res.status(400).send("something went wrong ");
-  }
-});
-
-app.patch("/user/:userId", async (req, res) => {
-  const userId = req.params?.userId;
-  const data = req.body;
-  
-  try {
-    const ALLOWED_UPADTES = ["age", "gender", "skills", "photourl","password"];
-
-  const isUpdateAllowed = Object.keys(data).every((k) =>
-    ALLOWED_UPADTES.includes(k)
-  );
-  if (!isUpdateAllowed) {
-    throw new Error("Upadate not allowed");
-  }
-  if(data?.skills?.length>=10){
-    throw new Error("skills more than 10 not allowed");
-  }
-     if (data.password) {
-      data.password = await bcrypt.hash(data.password, 10);
-    }
-    const user= await User.findByIdAndUpdate({ _id: userId }, data, {
-      returnDocument: "after",
-      runValidators: true,
-    });
-  
-    console.log(user);
-    res.send("updated successfully");
-  } catch (err) {
-    res.status(400).send("update failed " + err.message);
-  }
-});
 
 app.post("/login", async (req,res)=>{
   try{
@@ -99,14 +27,21 @@ app.post("/login", async (req,res)=>{
       if(!user){
         throw new Error("Invalid email id, not found");
       }
-      const isPasswordValid = await bcrypt.compare(password, user.password);
+      // const isPasswordValid = await bcrypt.compare(password, user.password);
+       const isPasswordValid = await user.validatePassword(password);
+
       if(isPasswordValid){
         //create a jwt token
-        const token = await jwt.sign({_id:user._id},"DEV@Tinder$123");
-        console.log(token);
+        // const token = await jwt.sign({_id:user._id},"DEV@Tinder$123",{expiresIn:"1h"});
+        // console.log(token);
+        // another way to write 
+        
+        const token = await user.getJWT();
 
         // add token to cookie and send to the user
-        res.cookie("token",token);
+        res.cookie("token",token,{
+          expires: new Date(Date.now()+8*360000),
+        });
 
         res.send("Login Successfull!!");
       }
@@ -149,6 +84,42 @@ app.get("/profile",userAuth,async(req,res)=>{
  } catch(err) {
     res.status(400).send("ERROR!" + err.message);
   }
+});
+app.patch("/user/:userId", async (req, res) => {
+  const userId = req.params?.userId;
+  const data = req.body;
+  
+  try {
+    const ALLOWED_UPADTES = ["age", "gender", "skills", "photourl","password"];
+
+  const isUpdateAllowed = Object.keys(data).every((k) =>
+    ALLOWED_UPADTES.includes(k)
+  );
+  if (!isUpdateAllowed) {
+    throw new Error("Upadate not allowed");
+  }
+  if(data?.skills?.length>=10){
+    throw new Error("skills more than 10 not allowed");
+  }
+     if (data.password) {
+      data.password = await bcrypt.hash(data.password, 10);
+    }
+    const user= await User.findByIdAndUpdate({ _id: userId }, data, {
+      returnDocument: "after",
+      runValidators: true,
+    });
+  
+    console.log(user);
+    res.send("updated successfully");
+  } catch (err) {
+    res.status(400).send("update failed " + err.message);
+  }
+});
+
+app.post("/sendConnectionRequest", userAuth ,async(req,res)=>{
+   console.log("sending a connection request");
+    const user= req.user;
+   res.send(user.firstName + " sent the coonection request");
 });
 
 connectDb()
