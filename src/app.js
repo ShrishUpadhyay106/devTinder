@@ -4,10 +4,15 @@ const connectDb = require("./config/database");
 const {validateSignUpdata}= require("./utility/validation");
 const bcrypt= require('bcrypt');
 const validator= require("validator");
+const cookieparser= require("cookie-parser");
+const jwt =require("jsonwebtoken");
+const {userAuth} = require("./middlewares/auth");
 
 const app = express();
 const User = require("./models/user");
 app.use(express.json());
+app.use(cookieparser());
+
 
 // for specific one user
 app.get("/user", async (req, res) => {
@@ -96,6 +101,13 @@ app.post("/login", async (req,res)=>{
       }
       const isPasswordValid = await bcrypt.compare(password, user.password);
       if(isPasswordValid){
+        //create a jwt token
+        const token = await jwt.sign({_id:user._id},"DEV@Tinder$123");
+        console.log(token);
+
+        // add token to cookie and send to the user
+        res.cookie("token",token);
+
         res.send("Login Successfull!!");
       }
       else{
@@ -126,6 +138,15 @@ app.post("/signup", async (req, res) => {
     await users.save();
     res.send("user added successfully");
   } catch (err) {
+    res.status(400).send("ERROR!" + err.message);
+  }
+});
+
+app.get("/profile",userAuth,async(req,res)=>{
+ try{
+   const  user= req.user;
+    res.send(user);
+ } catch(err) {
     res.status(400).send("ERROR!" + err.message);
   }
 });
